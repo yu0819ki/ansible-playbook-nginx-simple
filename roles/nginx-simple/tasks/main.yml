@@ -1,0 +1,26 @@
+---
+- name: check distribute
+  fail: msg='this tasks support for CentOS 6.x only. Your distribution is {{ ansible_distribution }} {{ ansible_distribution_version }}'
+  when: ansible_distribution_version|truncate(1, True, '') != '6'
+- name: put yum.repo
+  copy: src=etc/yum.repos.d/nginx.repo dest=/etc/yum.repos.d/nginx.repo
+- name: install nginx
+  yum: name=nginx state=present
+- name: chkconfig on
+  command: chkconfig nginx on
+- name: put nginx.conf
+  template: src=etc/nginx/nginx.conf.j2 dest=/etc/nginx/nginx.conf
+- name: put simple.conf
+  template: src=etc/nginx/conf.d/simple.conf.j2 dest=/etc/nginx/conf.d/simple.conf
+- name: change logs permission for logrotate
+  lineinfile: dest=/etc/logrotate.d/nginx regexp='(\s+)create .*' line='\1create 644 nginx nginx' backup=yes backrefs=yes
+- name: touch log directory
+  file: dest=/var/log/nginx group=nginx owner=nginx mode=755 state=directory
+- name: touch log files
+  file: dest={{ item }} group=nginx owner=nginx mode=644 state=touch
+  with_items:
+    - /var/log/nginx/access.log
+    - /var/log/nginx/access.ltsv.log
+    - /var/log/nginx/error.log
+- name: reload nginx
+  service: name=nginx state=reloaded
